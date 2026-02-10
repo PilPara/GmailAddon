@@ -66,6 +66,7 @@ function onGmailMessageOpen(event) {
   const messageId = event.gmail.messageId;
   const message = GmailApp.getMessageById(messageId);
   const emailData = parseEmail(message);
+  const result = sendToBackend(emailData);
 
   Logger.log(JSON.stringify(emailData));
 
@@ -73,9 +74,18 @@ function onGmailMessageOpen(event) {
     "From: " + emailData.from + "\nSubject: " + emailData.subject,
   );
 
+  const resultText = CardService.newTextParagraph().setText(
+    "Score: " + result.score + "\nVerdict: " + result.verdict,
+  );
+
+  const resultSection = CardService.newCardSection().addWidget(resultText);
+
   const section = CardService.newCardSection().addWidget(text);
 
-  return CardService.newCardBuilder().addSection(section).build();
+  return CardService.newCardBuilder()
+    .addSection(section)
+    .addSection(resultSection)
+    .build();
 
   // return CardService.newCardBuilder()
   //   .setHeader(header)
