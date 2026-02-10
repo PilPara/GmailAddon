@@ -1,0 +1,8 @@
+# node
+node_modules/
+
+# apps script
+.clasp.json
+
+# TDL
+implementation-checklist.md

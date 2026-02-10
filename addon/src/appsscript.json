@@ -1,0 +1,32 @@
+{
+  "timeZone": "Asia/Jerusalem",
+  "dependencies": {
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.current.message.metadata", 
+    "https://www.googleapis.com/auth/gmail.addons.execute", 
+    "https://www.googleapis.com/auth/userinfo.email", 
+    "https://www.googleapis.com/auth/script.locale", 
+    "https://www.googleapis.com/auth/gmail.readonly"],
+  "runtimeVersion": "V8",
+  "addOns": {
+    "common": {
+      "name": "UpWind Guard",
+      "logoUrl": "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fawsmp-logos.s3.amazonaws.com%2Fseller-iya3gfu2j7n3a%2Fc127beb0e792c982c402c952ef9d6663.png&f=1&nofb=1&ipt=bcc5c52cf070710ad6d0bef80a2dfbf57d36a2fc6695c3bbba7c292023a5257d",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      },
+      "openLinkUrlPrefixes": ["https://developers.google.com/gmail"]
+    },
+    "gmail": {
+      "contextualTriggers": [{
+        "unconditional": {
+        },
+        "onTriggerFunction": "onGmailMessageOpen"
+      }]
+    }
+  }
+}
