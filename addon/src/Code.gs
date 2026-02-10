@@ -1,32 +1,10 @@
-// Learn more about extending Gmail with Google Workspace add-ons at https://developers.google.com/workspace/add-ons/gmail
-
-//  function on(event) {
-//    var accessToken = event.gmail.accessToken;
-//    var messageId = event.gmail.messageId;
-//    GmailApp.setCurrentMessageAccessToken(accessToken);
-//    var mailMessage = GmailApp.getMessageById(messageId);
-//    var from = mailMessage.getFrom();
-//    var senderImage = "";
-
-//    var openDocButton = CardService.newTextButton()
-//        .setText("open docs")
-//        .setOpenLink(
-//            CardService.newOpenLink().setUrl("https://developers.google.com/gmail/add-ons/"));
-
-//    var cardHeader = CardService.newCardHeader().setTitle("UpWind Guard").setImageStyle(CardService.ImageStyle.CIRCLE).setImageUrl("https://www.upwind.io/wp-content/uploads/2026/01/genericArtboard-1-copy-6-1.png");
-
-//    var cardSection = CardService.newCardSection();
-
-//    return CardService.newCardBuilder().setHeader(cardHeader).addSection(cardSection).build();
-
-// }
-
 function onHomepage(event) {
   const time = Utilities.formatDate(
     new Date(),
     event.commonEventObject.timeZone.id,
     "HH:mm",
   );
+
   const header = CardService.newCardHeader().setTitle("title");
   const text = CardService.newTextParagraph().setText(time);
   const section = CardService.newCardSection()
@@ -36,6 +14,7 @@ function onHomepage(event) {
   var hour = Number(
     Utilities.formatDate(new Date(), event.userTimezone.id, "H"),
   );
+
   var message;
   if (hour >= 6 && hour < 12) {
     message = "Good morning";
@@ -65,28 +44,41 @@ function getSender(event) {
 }
 
 function onGmailMessageOpen(event) {
-  const title = "UpWind Guard";
-  const upWindlogoAdress =
-    "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fawsmp-logos.s3.amazonaws.com%2Fseller-iya3gfu2j7n3a%2Fc127beb0e792c982c402c952ef9d6663.png&f=1&nofb=1&ipt=bcc5c52cf070710ad6d0bef80a2dfbf57d36a2fc6695c3bbba7c292023a5257d";
-  const logo = CardService.newImage().setImageUrl(upWindlogoAdress);
+  // const title = "UpWind Guard";
+  // const upWindlogoAdress =
+  //   "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fawsmp-logos.s3.amazonaws.com%2Fseller-iya3gfu2j7n3a%2Fc127beb0e792c982c402c952ef9d6663.png&f=1&nofb=1&ipt=bcc5c52cf070710ad6d0bef80a2dfbf57d36a2fc6695c3bbba7c292023a5257d";
+  // const logo = CardService.newImage().setImageUrl(upWindlogoAdress);
+  //
+  // const header = CardService.newCardHeader()
+  //   .setTitle(title)
+  //   .setImageStyle(CardService.ImageStyle.CIRCLE)
+  //   .setImageUrl(upWindlogoAdress);
+  //
+  // const text = CardService.newTextParagraph().setText(
+  //   "Maliciousness score placeholder",
+  // );
+  // const section = CardService.newCardSection()
+  //   .setHeader("Section Header")
+  //   .addWidget(text);
 
-  const header = CardService.newCardHeader()
-    .setTitle(title)
-    .setImageStyle(CardService.ImageStyle.CIRCLE)
-    .setImageUrl(upWindlogoAdress);
+  const accessToken = event.gmail.accessToken;
+  GmailApp.setCurrentMessageAccessToken(accessToken);
+  const messageId = event.gmail.messageId;
+  const message = GmailApp.getMessageById(messageId);
+  const emailData = parseEmail(message);
+
+  Logger.log(JSON.stringify(emailData));
 
   const text = CardService.newTextParagraph().setText(
-    "Maliciousness score placeholder",
+    "From: " + emailData.from + "\nSubject: " + emailData.subject,
   );
-  const section = CardService.newCardSection()
-    .setHeader("Section Header")
-    .addWidget(text);
 
-  sender = getSender(event);
-  Logger.log(sender);
+  const section = CardService.newCardSection().addWidget(text);
 
-  return CardService.newCardBuilder()
-    .setHeader(header)
-    .addSection(section)
-    .build();
+  return CardService.newCardBuilder().addSection(section).build();
+
+  // return CardService.newCardBuilder()
+  //   .setHeader(header)
+  //   .addSection(section)
+  //   .build();
 }
