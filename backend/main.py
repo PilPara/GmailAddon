@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from auth_analyzer import anaylze_auth
 from domain_analyzer import analyze_domain
+from link_analyzer import analyze_links
+from llm_analyzer import analyze_with_llm
 import os
 import json
 
@@ -20,11 +22,16 @@ def analyze_email():
     pretyPrint(auth_response)
     domain_response = analyze_domain(data)
     pretyPrint(domain_response)
+    links_response = analyze_links(data)
+    pretyPrint(links_response)
+
+    llm_response = analyze_with_llm(data)
+    pretyPrint(llm_response)
 
     return jsonify({
         "score": 0,
         "verdict": "Safe",
-        "signals": auth_response["signals"] + domain_response["signals"]
+        "signals": auth_response["signals"] + domain_response["signals"] + links_response["signals"] + llm_response["signals"]
     })
 
 if __name__ == "__main__":

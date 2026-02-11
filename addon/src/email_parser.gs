@@ -3,7 +3,7 @@ function parseEmail(message) {
   const sender = message.getFrom();
   const replyTo = message.getReplyTo();
   const subject = message.getSubject();
-  const body = message.getPlainBody();
+  const body = message.getBody();
   const returnPath = message.getHeader("Return-Path");
   const recieved = message.getHeader("Recieved");
 
