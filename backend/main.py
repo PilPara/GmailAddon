@@ -12,7 +12,12 @@ def analyze_email():
 
     response = anaylze_auth(data)
     print(response)
-    return jsonify(response)
+
+    return jsonify({
+        "score": 0,
+        "verdict": "Safe",
+        "signals": response["signals"]
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
