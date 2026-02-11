@@ -1,22 +1,30 @@
 from flask import Flask, request, jsonify
 from auth_analyzer import anaylze_auth
+from domain_analyzer import analyze_domain
 import os
+import json
+
 
 app = Flask(__name__)
+
+def pretyPrint(data, indent=2):
+    print(json.dumps(data, indent=indent))
 
 @app.route('/analyze', methods=["POST"])
 def analyze_email():
     data = request.get_json()
-    # print(data)
+    pretyPrint(data)
     # print(data.get("authResults"))
 
-    response = anaylze_auth(data)
-    print(response)
+    auth_response = anaylze_auth(data)
+    pretyPrint(auth_response)
+    domain_response = anaylze_auth(data)
+    pretyPrint(domain_response)
 
     return jsonify({
         "score": 0,
         "verdict": "Safe",
-        "signals": response["signals"]
+        "signals": auth_response["signals"] + domain_response["signals"]
     })
 
 if __name__ == "__main__":
