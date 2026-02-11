@@ -14,6 +14,7 @@ def analyze_email():
     return jsonify(response)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    port = int(os.eviron.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 
