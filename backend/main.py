@@ -18,7 +18,7 @@ def analyze_email():
 
     auth_response = anaylze_auth(data)
     pretyPrint(auth_response)
-    domain_response = anaylze_auth(data)
+    domain_response = analyze_domain(data)
     pretyPrint(domain_response)
 
     return jsonify({
