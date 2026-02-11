@@ -3,6 +3,7 @@ from auth_analyzer import anaylze_auth
 from domain_analyzer import analyze_domain
 from link_analyzer import analyze_links
 from llm_analyzer import analyze_with_llm
+from attachment_analyzer import analyze_attachments
 import os
 import json
 
@@ -28,10 +29,13 @@ def analyze_email():
     llm_response = analyze_with_llm(data)
     pretyPrint(llm_response)
 
+    attachment_response = analyze_attachments(data)
+    pretyPrint(attachment_response)
+
     return jsonify({
         "score": 0,
         "verdict": "Safe",
-        "signals": auth_response["signals"] + domain_response["signals"] + links_response["signals"] + llm_response["signals"]
+        "signals": auth_response["signals"] + domain_response["signals"] + links_response["signals"] + llm_response["signals"] + attachment_response["signals"]
     })
 
 if __name__ == "__main__":
