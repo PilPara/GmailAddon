@@ -3,11 +3,11 @@ function parseEmail(message) {
   const sender = message.getFrom();
   const replyTo = message.getReplyTo();
   const subject = message.getSubject();
-  const body = message.getBody();
+  const body = message.getPlainBody();
   const returnPath = message.getHeader("Return-Path");
   const recieved = message.getHeader("Recieved");
 
-  return {
+  const result = {
     from: sender,
     replyTo: replyTo,
     subject: subject,
@@ -16,4 +16,6 @@ function parseEmail(message) {
     authResults: headers,
     recieved: recieved,
   };
+
+  return result;
 }
