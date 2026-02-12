@@ -20,11 +20,14 @@ URL_PATTERN = re.compile(r'https?://[^\s<>"\']+')
 IP_URL_PATTERN = re.compile(r'https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
 DOMAIN_PATTERN = re.compile(r'https?://([^/]+)')
 
+
 def extract_urls(body):
     return URL_PATTERN.findall(body)
 
+
 def is_ip_url(url):
     return bool(IP_URL_PATTERN.search(url))
+
 
 def is_shortener(url):
     domain = DOMAIN_PATTERN.search(url)
@@ -35,6 +38,7 @@ def is_shortener(url):
                 return shortener
     return None
 
+
 def has_suspicious_tld(url):
     domain = DOMAIN_PATTERN.search(url)
     if domain:
@@ -44,6 +48,7 @@ def has_suspicious_tld(url):
                 return tld
     return None
 
+
 def analyze_links(headers):
     signals = []
     body = headers.get("body", "")
@@ -52,7 +57,8 @@ def analyze_links(headers):
     if not urls:
         signals.append({
             "label": "No Links Found",
-            "details": "Email body contains no URLs"
+            "details": "Email body contains no URLs",
+            "user_details": "This email contains no links"
         })
         return {"signals": signals}
 
@@ -75,27 +81,31 @@ def analyze_links(headers):
     if ip_urls:
         signals.append({
             "label": "IP-Based URL Detected",
-            "details": f"Found {len(ip_urls)} URL(s) using IP addresses: {', '.join(ip_urls)}"
+            "details": f"Found {len(ip_urls)} URL(s) using IP addresses: {', '.join(ip_urls)}",
+            "user_details": f"This email contains {len(ip_urls)} link(s) using raw numbers instead of a website name — legitimate sites don't do this"
         })
 
     if shortened:
         labels = [f"{s['url']} ({s['service']})" for s in shortened]
         signals.append({
             "label": "URL Shortener Detected",
-            "details": f"Found {len(shortened)} shortened URL(s): {', '.join(labels)}"
+            "details": f"Found {len(shortened)} shortened URL(s): {', '.join(labels)}",
+            "user_details": f"This email contains {len(shortened)} shortened link(s) that hide the real destination — hover before clicking"
         })
 
     if suspicious:
         labels = [f"{s['url']} ({s['tld']})" for s in suspicious]
         signals.append({
             "label": "Suspicious TLD Detected",
-            "details": f"Found {len(suspicious)} URL(s) with suspicious TLDs: {', '.join(labels)}"
+            "details": f"Found {len(suspicious)} URL(s) with suspicious TLDs: {', '.join(labels)}",
+            "user_details": f"This email contains {len(suspicious)} link(s) using domain endings commonly associated with scams"
         })
 
     if not signals:
         signals.append({
             "label": "Links Clean",
-            "details": f"Found {len(urls)} link(s), none flagged"
+            "details": f"Found {len(urls)} link(s), none flagged",
+            "user_details": f"Found {len(urls)} link(s) — all appear safe"
         })
 
     return {"signals": signals}

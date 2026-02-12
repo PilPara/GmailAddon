@@ -17,41 +17,49 @@ def check_spf_signal(auth_results):
 
     match spf_check_value:
         case "pass":
-            signal = {"label": "SPF Passed", "details": "Sender server is authorized by domain"}
+            signal = {"label": "SPF Passed", "details": "Sender server is authorized by domain",
+                      "user_details": "The sending server is allowed to send on behalf of this domain ✓"}
         case "fail":
             signal = {
                 "label": "SPF Failed",
-                "details": "The SPF record has designated the host as NOT being allowed to send"
+                "details": "The SPF record has designated the host as NOT being allowed to send",
+                "user_details": "The sending server is NOT authorized to send for this domain ✗"
             }
         case "softfail":
             signal = {
                 "label": "SPF Soft Failed",
-                "details": "The SPF record has designated the host as NOT being allowed to send but is in transition"
+                "details": "The SPF record has designated the host as NOT being allowed to send but is in transition",
+                "user_details": "The sending server may not be authorized — the domain's policy is still being set up"
             }
         case "neutral":
             signal = {
                 "label": "SPF Neutral",
-                "details": "The SPF record specifies explicitly that nothing can be said about validity"
+                "details": "The SPF record specifies explicitly that nothing can be said about validity",
+                "user_details": "The domain doesn't confirm or deny this server is allowed to send"
             }
         case "none":
             signal = {
                 "label": "SPF None",
-                "details": "No SPF record found for domain"
+                "details": "No SPF record found for domain",
+                "user_details": "The sender's domain has no verification policy set up"
             }
         case "permerror":
             signal = {
                 "label": "SPF PermError",
-                "details": "SPF record badly formatted"
+                "details": "SPF record badly formatted",
+                "user_details": "The sender's verification record has errors — could not be checked"
             }
         case "temperror":
             signal = {
                 "label": "SPF TempError",
-                "details": "Temporary SPF check error"
+                "details": "Temporary SPF check error",
+                "user_details": "Temporary issue checking sender verification — try again later"
             }
         case _:
             signal = {
                 "label": "SPF Unknown",
-                "details": f"Unexpected SPF result {spf_check_value}"
+                "details": f"Unexpected SPF result {spf_check_value}",
+                "user_details": "Sender verification returned an unexpected result"
             }
 
     return signal
@@ -66,42 +74,50 @@ def check_dkim_signal(auth_results):
         case "pass":
             signal = {
                 "label": "DKIM Passed",
-                "details": "Message signature verified successfully"
+                "details": "Message signature verified successfully",
+                "user_details": "The email content hasn't been tampered with in transit ✓"
             }
         case "fail":
             signal = {
                 "label": "DKIM Failed",
-                "details": "Message signature failed verification"
+                "details": "Message signature failed verification",
+                "user_details": "The email content may have been altered after it was sent ✗"
             }
         case "none":
             signal = {
                 "label": "DKIM None",
-                "details": "Message was not signed"
+                "details": "Message was not signed",
+                "user_details": "The email was not digitally signed — its contents can't be verified"
             }
         case "policy":
             signal = {
                 "label": "DKIM Policy",
-                "details": "Signature not acceptable to receiving domain policy"
+                "details": "Signature not acceptable to receiving domain policy",
+                "user_details": "The email's digital signature doesn't meet your domain's requirements"
             }
         case "neutral":
             signal = {
                 "label": "DKIM Neutral",
-                "details": "Signature contained syntax errors or could not be processed"
+                "details": "Signature contained syntax errors or could not be processed",
+                "user_details": "The email's digital signature couldn't be fully verified"
             }
         case "temperror":
             signal = {
                 "label": "DKIM TempError",
-                "details": "Temporary error verifying signature, e.g. DNS timeout"
+                "details": "Temporary error verifying signature, e.g. DNS timeout",
+                "user_details": "Temporary issue verifying email signature — try again later"
             }
         case "permerror":
             signal = {
                 "label": "DKIM PermError",
-                "details": "Permanent error verifying signature, e.g. missing header"
+                "details": "Permanent error verifying signature, e.g. missing header",
+                "user_details": "The email's digital signature is broken and can't be verified"
             }
         case _:
             signal = {
                 "label": "DKIM Unknown",
-                "details": f"Unexpected DKIM result: {dkim_check_value}"
+                "details": f"Unexpected DKIM result: {dkim_check_value}",
+                "user_details": "Email signature check returned an unexpected result"
             }
 
     return signal
@@ -122,32 +138,38 @@ def check_dmarc_signal(auth_results):
         case "pass":
             signal = {
                 "label": "DMARC Passed",
-                "details": f"DMARC policy ({dmarc_policy}) published and at least one authentication mechanism passed"
+                "details": f"DMARC policy ({dmarc_policy}) published and at least one authentication mechanism passed",
+                "user_details": "The sender's domain has a protection policy and this email passed it ✓"
             }
         case "fail":
             signal = {
                 "label": "DMARC Failed",
-                "details": f"DMARC policy ({dmarc_policy}) published but no authentication mechanisms passed"
+                "details": f"DMARC policy ({dmarc_policy}) published but no authentication mechanisms passed",
+                "user_details": "This email failed the sender's own domain protection policy ✗"
             }
         case "none":
             signal = {
                 "label": "DMARC None",
-                "details": "No DMARC policy record published for the domain"
+                "details": "No DMARC policy record published for the domain",
+                "user_details": "The sender's domain has no protection policy — anyone could send as them"
             }
         case "temperror":
             signal = {
                 "label": "DMARC TempError",
-                "details": "Temporary error during DMARC evaluation"
+                "details": "Temporary error during DMARC evaluation",
+                "user_details": "Temporary issue checking domain protection policy — try again later"
             }
         case "permerror":
             signal = {
                 "label": "DMARC PermError",
-                "details": "Permanent error during DMARC evaluation, e.g. malformed record"
+                "details": "Permanent error during DMARC evaluation, e.g. malformed record",
+                "user_details": "The sender's domain protection policy is broken and can't be checked"
             }
         case _:
             signal = {
                 "label": "DMARC Unknown",
-                "details": f"Unexpected DMARC result: {dmarc_check_value}"
+                "details": f"Unexpected DMARC result: {dmarc_check_value}",
+                "user_details": "Domain protection check returned an unexpected result"
             }
 
     # NOTE: Attach policy to signal for scoring engine to use

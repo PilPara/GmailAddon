@@ -11,11 +11,11 @@ function onHomepage(event) {
     .setHeader("Time:")
     .addWidget(text);
 
-  var hour = Number(
+  const hour = Number(
     Utilities.formatDate(new Date(), event.userTimezone.id, "H"),
   );
 
-  var message;
+  let message;
   if (hour >= 6 && hour < 12) {
     message = "Good morning";
   } else if (hour >= 12 && hour < 18) {
@@ -43,6 +43,77 @@ function getSender(event) {
   return sender;
 }
 
+function getSeverityEmoji(verdict) {
+  // NOTE: Map severity level to emoji for visual distinction in plain text
+  const emojis = {
+    Critical: "🔴",
+    High: "🟠",
+    Medium: "🟡",
+    Low: "🟢",
+    Note: "✅",
+  };
+  return emojis[verdict] || "⚪";
+}
+
+function buildVerdictSection(result) {
+  // NOTE: Top section — verdict with emoji and score summary
+  const emoji = getSeverityEmoji(result.verdict);
+  const verdictText = emoji + "  <b>" + result.verdict + "</b>";
+
+  const scoreText =
+    "Score: " +
+    result.score +
+    "  |  Likelihood: " +
+    result.likelihood +
+    "/9" +
+    "  |  Impact: " +
+    result.impact +
+    "/9";
+
+  const section = CardService.newCardSection();
+
+  section.addWidget(CardService.newDecoratedText().setText(verdictText));
+
+  section.addWidget(CardService.newTextParagraph().setText(scoreText));
+
+  return section;
+}
+
+function buildActionsSection(actions) {
+  // NOTE: Recommended actions based on detected signals and severity
+  const section = CardService.newCardSection().setHeader(
+    "⚡ Recommended Actions",
+  );
+
+  for (let i = 0; i < actions.length; i++) {
+    section.addWidget(
+      CardService.newDecoratedText().setText(actions[i]).setWrapText(true),
+    );
+  }
+
+  return section;
+}
+
+function buildSignalsSection(signals) {
+  // NOTE: All detected signals grouped for readability
+  const section = CardService.newCardSection().setHeader("🔍 Detected Signals");
+
+  for (let i = 0; i < signals.length; i++) {
+    const signal = signals[i];
+    const label = signal.label;
+    const details = signal.user_details || signal.details;
+
+    section.addWidget(
+      CardService.newDecoratedText()
+        .setTopLabel(label)
+        .setText(details)
+        .setWrapText(true),
+    );
+  }
+
+  return section;
+}
+
 function onGmailMessageOpen(event) {
   const accessToken = event.gmail.accessToken;
   GmailApp.setCurrentMessageAccessToken(accessToken);
@@ -53,20 +124,20 @@ function onGmailMessageOpen(event) {
 
   Logger.log(JSON.stringify(emailData));
 
-  const text = CardService.newTextParagraph().setText(
-    "From: " + emailData.from + "\nSubject: " + emailData.subject,
-  );
+  // NOTE: Email info header
+  const header = CardService.newCardHeader()
+    .setTitle("UpWind Guard")
+    .setSubtitle(emailData.from);
 
-  const resultText = CardService.newTextParagraph().setText(
-    "Score: " + result.score + "\nVerdict: " + result.verdict,
-  );
-
-  const resultSection = CardService.newCardSection().addWidget(resultText);
-
-  const section = CardService.newCardSection().addWidget(text);
+  // NOTE: Build card sections
+  const verdictSection = buildVerdictSection(result);
+  const actionsSection = buildActionsSection(result.actions);
+  const signalsSection = buildSignalsSection(result.signals);
 
   return CardService.newCardBuilder()
-    .addSection(section)
-    .addSection(resultSection)
+    .setHeader(header)
+    .addSection(verdictSection)
+    .addSection(actionsSection)
+    .addSection(signalsSection)
     .build();
 }

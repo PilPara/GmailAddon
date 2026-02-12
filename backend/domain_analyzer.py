@@ -4,10 +4,12 @@ import tldextract
 # NOTE: Precompiled regex for extracting email from angle brackets (e.g., "Name <user@domain.com>")
 EMAIL_BRACKET_PATTERN = re.compile(r'<([^>]+)>')
 
+
 def get_root_domain(domain):
     """Extract the root domain (e.g., 'google.com' from 'mail.google.com')"""
     ext = tldextract.extract(domain)
     return f"{ext.domain}.{ext.suffix}"
+
 
 def extract_domain(email_string):
     """Extract domain from an email address string, handling '<user@domain>' format"""
@@ -19,9 +21,9 @@ def extract_domain(email_string):
         return parts[1].lower()
     return ""
 
+
 def analyze_domain(headers):
     signals = []
-
     return_path = headers.get("returnPath", "")
     from_header = headers.get("from", "")
     reply_to = headers.get("replyTo", "")
@@ -34,22 +36,26 @@ def analyze_domain(headers):
     if not rp_domain or not from_domain:
         signals.append({
             "label": "Domain Check Incomplete",
-            "details": f"Missing header — Return-Path: '{rp_domain}', From: '{from_domain}'"
+            "details": f"Missing header — Return-Path: '{rp_domain}', From: '{from_domain}'",
+            "user_details": "Could not fully verify the sender — some email headers are missing"
         })
     elif rp_domain == from_domain:
         signals.append({
             "label": "Domain Match",
-            "details": f"Return-Path and From share the same domain: {from_domain}"
+            "details": f"Return-Path and From share the same domain: {from_domain}",
+            "user_details": f"The sender's address matches where the email actually came from ({from_domain}) ✓"
         })
     elif get_root_domain(rp_domain) == get_root_domain(from_domain):
         signals.append({
             "label": "Domain Subdomain Match",
-            "details": f"Return-Path ({rp_domain}) and From ({from_domain}) share root domain: {get_root_domain(from_domain)}"
+            "details": f"Return-Path ({rp_domain}) and From ({from_domain}) share root domain: {get_root_domain(from_domain)}",
+            "user_details": f"The email came from a related address under {get_root_domain(from_domain)} ✓"
         })
     else:
         signals.append({
             "label": "Domain Mismatch",
-            "details": f"Return-Path domain ({rp_domain}) does not match From domain ({from_domain}) — possible spoofing"
+            "details": f"Return-Path domain ({rp_domain}) does not match From domain ({from_domain}) — possible spoofing",
+            "user_details": f"The email claims to be from {from_domain} but actually came from {rp_domain} — this is suspicious"
         })
 
     # NOTE: Reply-To vs From comparison
@@ -57,21 +63,25 @@ def analyze_domain(headers):
     # email looks like it's from a trusted sender but replies go to the attacker
     if reply_to:
         reply_to_domain = extract_domain(reply_to)
+
         if reply_to_domain and reply_to_domain != from_domain:
             if get_root_domain(reply_to_domain) != get_root_domain(from_domain):
                 signals.append({
                     "label": "Reply-To Mismatch",
-                    "details": f"Reply-To ({reply_to_domain}) does not match From ({from_domain}) — replies go to a different domain"
+                    "details": f"Reply-To ({reply_to_domain}) does not match From ({from_domain}) — replies go to a different domain",
+                    "user_details": f"If you reply, your message goes to {reply_to_domain} instead of {from_domain} — this is suspicious"
                 })
             else:
                 signals.append({
                     "label": "Reply-To Subdomain Match",
-                    "details": f"Reply-To ({reply_to_domain}) and From ({from_domain}) share root domain"
+                    "details": f"Reply-To ({reply_to_domain}) and From ({from_domain}) share root domain",
+                    "user_details": f"Reply address is under the same organization as the sender ✓"
                 })
         else:
             signals.append({
                 "label": "Reply-To Match",
-                "details": f"Reply-To matches From domain: {from_domain}"
+                "details": f"Reply-To matches From domain: {from_domain}",
+                "user_details": f"Replies go to the same domain as the sender ({from_domain}) ✓"
             })
 
     return {"signals": signals}
