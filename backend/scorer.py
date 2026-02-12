@@ -160,6 +160,28 @@ SEVERITY_MATRIX = {
     LEVEL_HIGH:   {LEVEL_LOW: SEVERITY_MEDIUM, LEVEL_MEDIUM: SEVERITY_HIGH,   LEVEL_HIGH: SEVERITY_CRITICAL}
 }
 
+# NOTE: Action suggestions mapped to detected signal labels
+SIGNAL_ACTIONS = {
+    "Dangerous File Type": "Do not open attachments — executable file detected",
+    "Macro-Enabled File": "Do not enable macros if you open the attached file",
+    "Double Extension Detected": "Do not open attachments — file disguises its true type",
+    "Domain Mismatch": "Verify sender identity through a different channel",
+    "Reply-To Mismatch": "Do not reply — responses go to a different domain than the sender",
+    "IP-Based URL Detected": "Do not click any links in this email",
+    "Suspicious TLD Detected": "Do not click any links — suspicious domain detected",
+    "URL Shortener Detected": "Hover over links to check destination before clicking",
+    "LLM Analysis Failed": "AI analysis unavailable — exercise extra caution",
+}
+
+# NOTE: Default actions based on severity level when no specific signals triggered
+SEVERITY_ACTIONS = {
+    SEVERITY_CRITICAL: "Delete this email immediately and report as phishing",
+    SEVERITY_HIGH: "Do not interact with this email — verify sender through a different channel",
+    SEVERITY_MEDIUM: "Proceed with caution — verify sender identity before taking action",
+    SEVERITY_LOW: "Likely safe — minor indicators detected",
+    SEVERITY_NOTE: "No threats detected",
+}
+
 def score_auth(signals):
     """Score authentication signals. Returns 0-9."""
     spf_score = 0
@@ -341,6 +363,22 @@ def categorize_impact(score):
     else:
         return LEVEL_HIGH
 
+def generate_actions(all_signals, severity):
+    # NOTE: Generate action suggestions based on detected signals and severity
+    actions = []
+    seen_labels = set()
+
+    for signal in all_signals:
+        label = signal.get("label", "")
+        if label in SIGNAL_ACTIONS and label not in seen_labels:
+            actions.append(SIGNAL_ACTIONS[label])
+            seen_labels.add(label)
+
+    # NOTE: Always include the severity-level default action
+    actions.append(SEVERITY_ACTIONS[severity])
+
+    return actions
+
 def calculate_score(all_signals):
     """Main scoring function. Takes all signals, returns score and verdict."""
     auth_score = score_auth(all_signals)
@@ -355,14 +393,14 @@ def calculate_score(all_signals):
     likelihood_level = categorize_likelihood(likelihood)
     impact_level = categorize_impact(impact)
     severity = SEVERITY_MATRIX[likelihood_level][impact_level]
-
-    # TODO: dynamic action suggestions
+    actions = generate_actions(all_signals, severity)
 
     return {
         "score": round(likelihood * impact, 1),
         "likelihood": likelihood,
         "impact": impact,
         "severity": severity,
+        "actions": actions,
         "debug": {
             "auth_score": auth_score,
             "domain_score": domain_score,

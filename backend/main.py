@@ -15,8 +15,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
+
 def prettyPrint(data, indent=2):
     print(json.dumps(data, indent=indent))
+
 
 @app.route('/analyze', methods=["POST"])
 def analyze_email():
@@ -72,14 +74,17 @@ def analyze_email():
     # NOTE: Pass all signals to scoring engine (OWASP Likelihood x Impact)
     result = calculate_score(signals)
     print(f"Scoring debug: {result['debug']}")
-
     print(f"Total analysis time: {time.time() - start:.2f}s")
 
     return jsonify({
         "score": result["score"],
+        "likelihood": result["likelihood"],
+        "impact": result["impact"],
         "verdict": result["severity"],
+        "actions": result["actions"],
         "signals": signals
     })
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
