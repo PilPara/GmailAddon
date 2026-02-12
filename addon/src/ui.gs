@@ -230,14 +230,14 @@ function buildCard(header, verdictSection, actionsSection, signals) {
   if (authPassCount === 3) {
     addFindingWidget(
       card,
-      "Sender identity verified — this email is really from who it claims ✓",
+      "Email authentication passed — sent from a legitimate mail server, but this doesn't guarantee the sender is trustworthy",
     );
   } else if (authPassCount > 0) {
     addFindingWidget(
       card,
-      "Sender identity partially verified (" +
+      "Email authentication partially passed (" +
         authPassCount +
-        "/3 checks passed)",
+        "/3 checks) — proceed with caution",
     );
   }
 

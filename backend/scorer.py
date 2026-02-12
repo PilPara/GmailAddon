@@ -70,6 +70,10 @@ MALICIOUS_MEDIUM_CONFIDENCE_SCORE = 7
 MALICIOUS_LOW_CONFIDENCE_SCORE = 5
 MALICIOUS_UNCERTAIN_SCORE = 3
 
+# NOTE: Score assigned when LLM analysis fails entirely
+# Treated as suspicious — absence of AI analysis is not evidence of safety
+LLM_FAILURE_SCORE = 5
+
 # NOTE: Max score cap for individual factors
 MAX_FACTOR_SCORE = 9
 # NOTE: Max combined auth score (SPF + DKIM + DMARC)
@@ -91,7 +95,7 @@ DATA_COMPROMISE_BY_ATTACK = {
     "scam": 4,
     "spam": 2,
     "legitimate": 0,
-    "unknown": 3
+    "unknown": 5
 }
 
 # NOTE: Score applied when a dangerous executable attachment is present
@@ -117,7 +121,7 @@ AVAILABILITY_BY_ATTACK = {
     "scam": 1,
     "spam": 0,
     "legitimate": 0,
-    "unknown": 2
+    "unknown": 4
 }
 
 # NOTE: Availability score when dangerous executable attachment is present
@@ -255,6 +259,12 @@ def score_links(signals):
 def score_llm(signals):
     """Score LLM deception sophistication. Returns 0-9.
     Combines attack type classification with confidence level."""
+
+    # NOTE: If LLM failed, treat as suspicious rather than neutral
+    for signal in signals:
+        if signal.get("label") in ("LLM Analysis Failed", "LLM Analysis Unavailable", "LLM Analysis Skipped"):
+            return LLM_FAILURE_SCORE
+
     attack_type = "unknown"
     confidence = 0
 
@@ -374,8 +384,9 @@ def generate_actions(all_signals, severity):
             actions.append(SIGNAL_ACTIONS[label])
             seen_labels.add(label)
 
-    # NOTE: Always include the severity-level default action
-    actions.append(SEVERITY_ACTIONS[severity])
+    # NOTE: Only include severity default if no specific signal actions were generated
+    if not actions:
+        actions.append(SEVERITY_ACTIONS[severity])
 
     return actions
 
