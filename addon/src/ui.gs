@@ -2,7 +2,9 @@ function onHomepage(event) {
   const userEmail = Session.getActiveUser().getEmail();
   const userName = userEmail.split("@")[0];
 
-  const header = CardService.newCardHeader().setTitle("UpWind Guard");
+  const header = CardService.newCardHeader().setTitle(
+    "📧 Email Threat Scanner",
+  );
 
   const greeting = CardService.newTextParagraph().setText(
     "👋 Hello, " + userName + "!",
