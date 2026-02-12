@@ -127,8 +127,38 @@ DANGEROUS_ATTACHMENT_AVAILABILITY_SCORE = 9
 # NOTE: Availability score when macro-enabled attachment is present
 MACRO_ATTACHMENT_AVAILABILITY_SCORE = 7
 
-# NOTE: Number of likelihood factors used in averaging
 LIKELIHOOD_FACTOR_COUNT = 5
+
+# NOTE: Number of impact factors used in averaging
+IMPACT_FACTOR_COUNT = 2
+
+# NOTE: Level categories for matrix lookup
+LEVEL_LOW = "LOW"
+LEVEL_MEDIUM = "MEDIUM"
+LEVEL_HIGH = "HIGH"
+
+# NOTE: Severity levels returned by matrix
+SEVERITY_NOTE = "Note"
+SEVERITY_LOW = "Low"
+SEVERITY_MEDIUM = "Medium"
+SEVERITY_HIGH = "High"
+SEVERITY_CRITICAL = "Critical"
+
+# NOTE: Likelihood thresholds for matrix categorization (0-9 scale)
+LIKELIHOOD_LOW_THRESHOLD = 3
+LIKELIHOOD_MEDIUM_THRESHOLD = 6
+
+# NOTE: Impact thresholds for matrix categorization (0-9 scale)
+IMPACT_LOW_THRESHOLD = 3
+IMPACT_MEDIUM_THRESHOLD = 6
+
+# NOTE: Severity matrix — rows are likelihood (LOW/MEDIUM/HIGH), columns are impact
+# Matches OWASP Risk Rating Methodology adapted for email threat domain
+SEVERITY_MATRIX = {
+    LEVEL_LOW:    {LEVEL_LOW: SEVERITY_NOTE,   LEVEL_MEDIUM: SEVERITY_LOW,    LEVEL_HIGH: SEVERITY_MEDIUM},
+    LEVEL_MEDIUM: {LEVEL_LOW: SEVERITY_LOW,    LEVEL_MEDIUM: SEVERITY_MEDIUM, LEVEL_HIGH: SEVERITY_HIGH},
+    LEVEL_HIGH:   {LEVEL_LOW: SEVERITY_MEDIUM, LEVEL_MEDIUM: SEVERITY_HIGH,   LEVEL_HIGH: SEVERITY_CRITICAL}
+}
 
 def score_auth(signals):
     """Score authentication signals. Returns 0-9."""
@@ -293,6 +323,24 @@ def calculate_likelihood(auth, domain, reply_to, links, llm):
     total = auth + domain + reply_to + links + llm
     return round(total / LIKELIHOOD_FACTOR_COUNT, 1)
 
+def categorize_likelihood(score):
+    # NOTE: Categorize likelihood score (0-9) into LOW/MEDIUM/HIGH for matrix lookup
+    if score < LIKELIHOOD_LOW_THRESHOLD:
+        return LEVEL_LOW
+    elif score < LIKELIHOOD_MEDIUM_THRESHOLD:
+        return LEVEL_MEDIUM
+    else:
+        return LEVEL_HIGH
+
+def categorize_impact(score):
+    # NOTE: Categorize impact score (0-9) into LOW/MEDIUM/HIGH for matrix lookup
+    if score < IMPACT_LOW_THRESHOLD:
+        return LEVEL_LOW
+    elif score < IMPACT_MEDIUM_THRESHOLD:
+        return LEVEL_MEDIUM
+    else:
+        return LEVEL_HIGH
+
 def calculate_score(all_signals):
     """Main scoring function. Takes all signals, returns score and verdict."""
     auth_score = score_auth(all_signals)
@@ -300,25 +348,30 @@ def calculate_score(all_signals):
     reply_to_score = score_reply_to(all_signals)
     link_score = score_links(all_signals)
     llm_score = score_llm(all_signals)
-    impact_score = score_impact(all_signals)
+    impact_scores = score_impact(all_signals)
     likelihood = calculate_likelihood(auth_score, domain_score, reply_to_score, link_score, llm_score)
+    impact = round((impact_scores["data_compromise"] + impact_scores["availability"]) / IMPACT_FACTOR_COUNT, 1)
 
-    # TODO: add other likelihood factors
-    # TODO: add impact factors
-    # TODO: matrix lookup
+    likelihood_level = categorize_likelihood(likelihood)
+    impact_level = categorize_impact(impact)
+    severity = SEVERITY_MATRIX[likelihood_level][impact_level]
+
+    # TODO: dynamic action suggestions
 
     return {
-        "score": 0,
+        "score": round(likelihood * impact, 1),
         "likelihood": likelihood,
-        "impact": 0,
-        "severity": "Note",
+        "impact": impact,
+        "severity": severity,
         "debug": {
             "auth_score": auth_score,
             "domain_score": domain_score,
             "reply_to_score": reply_to_score,
             "link_score": link_score,
             "llm_score": llm_score,
-            "data_compromise": impact_score["data_compromise"],
-            "availability": impact_score["availability"]
+            "data_compromise": impact_scores["data_compromise"],
+            "availability": impact_scores["availability"],
+            "likelihood_level": likelihood_level,
+            "impact_level": impact_level
         }
     }
