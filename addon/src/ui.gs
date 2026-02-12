@@ -1,36 +1,24 @@
 function onHomepage(event) {
-  const time = Utilities.formatDate(
-    new Date(),
-    event.commonEventObject.timeZone.id,
-    "HH:mm",
+  const userEmail = Session.getActiveUser().getEmail();
+  const userName = userEmail.split("@")[0];
+
+  const header = CardService.newCardHeader().setTitle("UpWind Guard");
+
+  const greeting = CardService.newTextParagraph().setText(
+    "👋 Hello, " + userName + "!",
   );
 
-  const header = CardService.newCardHeader().setTitle("title");
-  const text = CardService.newTextParagraph().setText(time);
+  const instructions = CardService.newTextParagraph().setText(
+    "Open an email to scan it for threats. The analysis will appear here automatically.",
+  );
+
   const section = CardService.newCardSection()
-    .setHeader("Time:")
-    .addWidget(text);
+    .addWidget(greeting)
+    .addWidget(instructions);
 
-  const hour = Number(
-    Utilities.formatDate(new Date(), event.userTimezone.id, "H"),
-  );
-
-  let message;
-  if (hour >= 6 && hour < 12) {
-    message = "Good morning";
-  } else if (hour >= 12 && hour < 18) {
-    message = "Good afternoon";
-  } else {
-    message = "Good night";
-  }
-  message += " " + event.hostApp;
-
-  const text1 = CardService.newTextParagraph().setText(message);
-  const section1 = CardService.newCardSection().addWidget(text1);
   return CardService.newCardBuilder()
     .setHeader(header)
     .addSection(section)
-    .addSection(section1)
     .build();
 }
 
