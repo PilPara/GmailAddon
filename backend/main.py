@@ -1,11 +1,12 @@
 from flask import Flask, request, jsonify
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from dotenv import load_dotenv
 from auth_analyzer import anaylze_auth
 from domain_analyzer import analyze_domain
 from link_analyzer import analyze_links
 from llm_analyzer import analyze_with_llm
 from attachment_analyzer import analyze_attachments
-from dotenv import load_dotenv
+from scorer import calculate_score
 import os
 import json
 import time
@@ -22,16 +23,16 @@ def analyze_email():
     start = time.time()
     data = request.get_json()
 
-    # ThreadPoolExecutor creates a pool of worker threads
+    # NOTE: ThreadPoolExecutor creates a pool of worker threads
     # Used because the LLM API call is slow (2-5s)
     # while all other analyzers finish in milliseconds
     with ThreadPoolExecutor() as executor:
 
-        # Submit LLM to a separate thread — starts running immediately in background
+        # NOTE: Submit LLM to a separate thread — starts running immediately in background
         # Returns a "future" (a promise that the result will be available later)
         llm_future = executor.submit(analyze_with_llm, data)
 
-        # Run all fast analyzers on the main thread while LLM works in parallel
+        # NOTE: Run all fast analyzers on the main thread while LLM works in parallel
         auth_response = anaylze_auth(data)
         domain_response = analyze_domain(data)
         links_response = analyze_links(data)
@@ -40,7 +41,7 @@ def analyze_email():
         sync_done = time.time()
         print(f"Sync analyzers: {sync_done - start:.2f}s")
 
-        # Collect LLM result — returns instantly if already finished,
+        # NOTE: Collect LLM result — returns instantly if already finished,
         # otherwise waits up to 15 seconds.
         # Graceful degradation: if LLM fails or times out, results are still returned
         try:
@@ -53,13 +54,7 @@ def analyze_email():
 
         print(f"LLM wait: {time.time() - sync_done:.2f}s")
 
-    prettyPrint(llm_response)
-    prettyPrint(auth_response)
-    prettyPrint(domain_response)
-    prettyPrint(links_response)
-    prettyPrint(attachment_response)
-
-    # Merge all signals from every analyzer into one list
+    # NOTE: Merge all signals from every analyzer into one list
     signals = (
         auth_response["signals"] +
         domain_response["signals"] +
@@ -68,12 +63,15 @@ def analyze_email():
         attachment_response["signals"]
     )
 
+    # NOTE: Pass all signals to scoring engine (OWASP Likelihood x Impact)
+    result = calculate_score(signals)
+    print(f"Scoring debug: {result['debug']}")
+
     print(f"Total analysis time: {time.time() - start:.2f}s")
 
-    # TODO: pass signals to scoring engine
     return jsonify({
-        "score": 0,
-        "verdict": "Safe",
+        "score": result["score"],
+        "verdict": result["severity"],
         "signals": signals
     })
 
