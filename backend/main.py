@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from dotenv import load_dotenv
-from auth_analyzer import anaylze_auth
+from auth_analyzer import analyze_auth
 from domain_analyzer import analyze_domain
 from link_analyzer import analyze_links
 from llm_analyzer import analyze_with_llm
@@ -44,7 +44,7 @@ def analyze_email():
         llm_future = executor.submit(analyze_with_llm, data)
 
         # NOTE: Run all fast analyzers on the main thread while LLM works in parallel
-        auth_response = anaylze_auth(data)
+        auth_response = analyze_auth(data)
         domain_response = analyze_domain(data)
         links_response = analyze_links(data)
         attachment_response = analyze_attachments(data)

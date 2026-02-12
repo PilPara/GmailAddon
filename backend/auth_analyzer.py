@@ -178,7 +178,7 @@ def check_dmarc_signal(auth_results):
     return signal
 
 
-def anaylze_auth(headers):
+def analyze_auth(headers):
     auth_result = headers.get("authResults", "")
     spf_signal = check_spf_signal(auth_result)
     dkim_signal = check_dkim_signal(auth_result)
