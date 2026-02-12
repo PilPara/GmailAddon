@@ -3,7 +3,18 @@ import json
 import requests
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+GEMINI_API_KEY_BRO = os.environ.get("GEMINI_API_KEY_BRO")
+
+# NOTE: Ordered list of model + key combinations to try
+# Falls back through the chain until one succeeds
+GEMINI_MODELS = [
+    {"model": "gemini-2.5-flash", "key": GEMINI_API_KEY},
+    {"model": "gemini-2.5-flash", "key": GEMINI_API_KEY_BRO},
+    {"model": "gemini-2.0-flash", "key": GEMINI_API_KEY},
+    {"model": "gemini-2.0-flash", "key": GEMINI_API_KEY_BRO},
+]
+
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 
 # NOTE: Load LLM prompt from external file for readability and maintainability
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "prompt.txt")
@@ -11,15 +22,44 @@ with open(PROMPT_PATH, "r") as f:
     SYSTEM_PROMPT = f.read()
 
 
+def try_gemini_request(payload):
+    # NOTE: Try each model+key combo in order, return first successful response
+    last_error = None
+
+    for combo in GEMINI_MODELS:
+        if not combo["key"]:
+            continue
+
+        url = GEMINI_BASE_URL.format(model=combo["model"], key=combo["key"])
+
+        try:
+            print(f"Trying {combo['model']} with key ...{combo['key'][-4:]}")
+            response = requests.post(url, json=payload, timeout=15)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            last_error = e
+            # NOTE: Redact both possible keys from error messages
+            error_msg = str(e)
+            if GEMINI_API_KEY:
+                error_msg = error_msg.replace(GEMINI_API_KEY, "[REDACTED]")
+            if GEMINI_API_KEY_BRO:
+                error_msg = error_msg.replace(GEMINI_API_KEY_BRO, "[REDACTED_BRO]")
+            print(f"Failed: {error_msg}")
+            continue
+
+    return last_error
+
+
 def analyze_with_llm(headers):
     signals = []
     subject = headers.get("subject", "")
     body = headers.get("body", "")
 
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY and not GEMINI_API_KEY_BRO:
         signals.append({
             "label": "LLM Analysis Skipped",
-            "details": "Gemini API key not configured",
+            "details": "No Gemini API keys configured",
             "user_details": "AI analysis is not available"
         })
         return {"signals": signals}
@@ -35,11 +75,25 @@ def analyze_with_llm(headers):
         ]
     }
 
+    result = try_gemini_request(payload)
+
+    # NOTE: If all attempts failed, result is the last exception
+    if isinstance(result, Exception):
+        error_msg = str(result)
+        if GEMINI_API_KEY:
+            error_msg = error_msg.replace(GEMINI_API_KEY, "[REDACTED]")
+        if GEMINI_API_KEY_BRO:
+            error_msg = error_msg.replace(GEMINI_API_KEY_BRO, "[REDACTED_BRO]")
+        signals.append({
+            "label": "LLM Analysis Failed",
+            "details": f"All models failed. Last error: {error_msg}",
+            "user_details": "AI analysis could not be completed — other checks are still active"
+        })
+        return {"signals": signals}
+
     try:
-        response = requests.post(GEMINI_URL, json=payload, timeout=15)
-        response.raise_for_status()
-        result = response.json()
-        text = result["candidates"][0]["content"]["parts"][0]["text"]
+        data = result.json()
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
         text = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         analysis = json.loads(text)
 
@@ -111,14 +165,6 @@ def analyze_with_llm(headers):
                 "details": explanation,
                 "user_details": explanation
             })
-
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e).replace(GEMINI_API_KEY, "[REDACTED]") if GEMINI_API_KEY else str(e)
-        signals.append({
-            "label": "LLM Analysis Failed",
-            "details": f"API request error: {error_msg}",
-            "user_details": "AI analysis could not be completed — other checks are still active"
-        })
 
     except (json.JSONDecodeError, KeyError) as e:
         signals.append({
