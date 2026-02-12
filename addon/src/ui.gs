@@ -57,24 +57,8 @@ function getSeveritySummary(verdict) {
   return summaries[verdict] || "Unable to determine email safety.";
 }
 
-function getNormalizedScore(rawScore) {
-  const MAX_RAW_SCORE = 81;
-  const NORMALIZED_MAX = 100;
-  return Math.round((rawScore / MAX_RAW_SCORE) * NORMALIZED_MAX);
-}
-
-function getScoreLabel(normalizedScore) {
-  if (normalizedScore <= 12) return "Very low risk";
-  if (normalizedScore <= 30) return "Low risk";
-  if (normalizedScore <= 55) return "Moderate risk";
-  if (normalizedScore <= 80) return "High risk";
-  return "Critical risk";
-}
-
 function buildVerdictSection(result) {
   const emoji = getSeverityEmoji(result.verdict);
-  const normalizedScore = getNormalizedScore(result.score);
-  const scoreLabel = getScoreLabel(normalizedScore);
   const section = CardService.newCardSection().setHeader("Verdict");
 
   section.addWidget(
@@ -85,12 +69,6 @@ function buildVerdictSection(result) {
 
   section.addWidget(
     CardService.newTextParagraph().setText(getSeveritySummary(result.verdict)),
-  );
-
-  section.addWidget(
-    CardService.newTextParagraph().setText(
-      "Risk Score: " + normalizedScore + " / 100 — " + scoreLabel,
-    ),
   );
 
   return section;
@@ -163,7 +141,6 @@ function buildCard(header, verdictSection, actionsSection, signals) {
     .addSection(verdictSection)
     .addSection(actionsSection);
 
-  // NOTE: Add findings header
   const findingsHeader =
     CardService.newCardSection().setHeader("🔍 What We Found");
   findingsHeader.addWidget(CardService.newTextParagraph().setText(""));
@@ -216,7 +193,6 @@ function buildCard(header, verdictSection, actionsSection, signals) {
     warningSignals.push({ label: label, details: details });
   }
 
-  // NOTE: Auth summary
   if (authPassCount === 3) {
     addFindingWidget(
       card,
@@ -231,17 +207,14 @@ function buildCard(header, verdictSection, actionsSection, signals) {
     );
   }
 
-  // NOTE: Auth failures
   for (let i = 0; i < authFailSignals.length; i++) {
     addFindingWidget(card, "⚠️ " + authFailSignals[i].details);
   }
 
-  // NOTE: Warnings
   for (let i = 0; i < warningSignals.length; i++) {
     addFindingWidget(card, "⚠️ " + warningSignals[i].details);
   }
 
-  // NOTE: Safe attachments
   if (safeAttachmentCount > 0 && !hasAttachmentWarning) {
     addFindingWidget(
       card,
@@ -252,7 +225,6 @@ function buildCard(header, verdictSection, actionsSection, signals) {
     addFindingWidget(card, safeAttachmentCount + " attachment(s) found");
   }
 
-  // NOTE: Info signals
   for (let i = 0; i < infoSignals.length; i++) {
     addFindingWidget(card, infoSignals[i].details);
   }
