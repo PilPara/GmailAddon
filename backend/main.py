@@ -5,6 +5,7 @@ from auth_analyzer import anaylze_auth
 from domain_analyzer import analyze_domain
 from link_analyzer import analyze_links
 from llm_analyzer import analyze_with_llm
+from fallback_analyzer import analyze_fallback
 from attachment_analyzer import analyze_attachments
 from scorer import calculate_score
 import os
@@ -18,6 +19,14 @@ app = Flask(__name__)
 
 def prettyPrint(data, indent=2):
     print(json.dumps(data, indent=indent))
+
+
+def llm_failed(llm_response):
+    # NOTE: Check if LLM analysis failed or was unavailable
+    for signal in llm_response.get("signals", []):
+        if signal.get("label") in ("LLM Analysis Failed", "LLM Analysis Unavailable", "LLM Analysis Skipped"):
+            return True
+    return False
 
 
 @app.route('/analyze', methods=["POST"])
@@ -56,6 +65,14 @@ def analyze_email():
 
         print(f"LLM wait: {time.time() - sync_done:.2f}s")
 
+        # NOTE: If LLM failed, run regex-based fallback analyzer
+        if llm_failed(llm_response):
+            fallback_response = analyze_fallback(data)
+            print("Fallback analyzer activated")
+            prettyPrint(fallback_response)
+        else:
+            fallback_response = {"signals": []}
+
         prettyPrint(llm_response)
         prettyPrint(auth_response)
         prettyPrint(domain_response)
@@ -68,6 +85,7 @@ def analyze_email():
         domain_response["signals"] +
         links_response["signals"] +
         llm_response["signals"] +
+        fallback_response["signals"] +
         attachment_response["signals"]
     )
 
