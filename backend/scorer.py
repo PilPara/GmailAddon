@@ -127,6 +127,9 @@ DANGEROUS_ATTACHMENT_AVAILABILITY_SCORE = 9
 # NOTE: Availability score when macro-enabled attachment is present
 MACRO_ATTACHMENT_AVAILABILITY_SCORE = 7
 
+# NOTE: Number of likelihood factors used in averaging
+LIKELIHOOD_FACTOR_COUNT = 5
+
 def score_auth(signals):
     """Score authentication signals. Returns 0-9."""
     spf_score = 0
@@ -166,19 +169,18 @@ def score_auth(signals):
     return min(total, 9)
 
 def score_domain(signals):
-    """Score domain mismatch signals. Returs 0-9"""
-    score = 0
-
+    # NOTE: Score Return-Path vs From domain mismatch. Returns 0-9.
     for signal in signals:
-        label = signal.get("label", "")
+        if signal.get("label") == "Domain Mismatch":
+            return DOMAIN_MISMATCH_SCORE
+    return 0
 
-        if label == "Domain Mismatch":
-            score = DOMAIN_MISMATCH_SCORE
-
-        if label == "Reply-To Mismatch":
-            score = max(score, REPLY_TO_MISMATCH_SCORE)
-
-    return min(score, 9)
+def score_reply_to(signals):
+    # NOTE: Score Reply-To vs From domain mismatch. Returns 0-9.
+    for signal in signals:
+        if signal.get("label") == "Reply-To Mismatch":
+            return REPLY_TO_MISMATCH_SCORE
+    return 0
 
 def score_links(signals):
     """Score link-related signals. Returns 0-9."""
@@ -286,13 +288,20 @@ def score_impact(signals):
         "availability": min(availability, MAX_FACTOR_SCORE)
     }
 
+def calculate_likelihood(auth, domain, reply_to, links, llm):
+    # NOTE: Likelihood is the average of 5 factor scores, scaled to 0-9
+    total = auth + domain + reply_to + links + llm
+    return round(total / LIKELIHOOD_FACTOR_COUNT, 1)
+
 def calculate_score(all_signals):
     """Main scoring function. Takes all signals, returns score and verdict."""
     auth_score = score_auth(all_signals)
     domain_score = score_domain(all_signals)
+    reply_to_score = score_reply_to(all_signals)
     link_score = score_links(all_signals)
     llm_score = score_llm(all_signals)
     impact_score = score_impact(all_signals)
+    likelihood = calculate_likelihood(auth_score, domain_score, reply_to_score, link_score, llm_score)
 
     # TODO: add other likelihood factors
     # TODO: add impact factors
@@ -300,14 +309,16 @@ def calculate_score(all_signals):
 
     return {
         "score": 0,
-        "likelihood": 0,
+        "likelihood": likelihood,
         "impact": 0,
         "severity": "Note",
         "debug": {
             "auth_score": auth_score,
             "domain_score": domain_score,
+            "reply_to_score": reply_to_score,
             "link_score": link_score,
             "llm_score": llm_score,
-            "impact_score": impact_score
+            "data_compromise": impact_score["data_compromise"],
+            "availability": impact_score["availability"]
         }
     }
