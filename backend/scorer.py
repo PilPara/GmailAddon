@@ -30,6 +30,12 @@ DMARC_POLICY_BOOST = {
     "UNKNOWN": 0
 }
 
+# NOTE: Fixed scores for domain mismatch checks (0-9 scale)
+# Domain mismatch is slightly more suspicious than Reply-To mismatch
+# because it indicates the actual sending infrastructure differs from claimed sender
+DOMAIN_MISMATCH_SCORE = 7
+REPLY_TO_MISMATCH_SCORE = 6
+
 def score_auth(signals):
     """Score authentication signals. Returns 0-9."""
     spf_score = 0
@@ -68,10 +74,25 @@ def score_auth(signals):
     total = spf_score + dkim_score + dmarc_score
     return min(total, 9)
 
+def score_domain(signals):
+    """Score domain mismatch signals. Returs 0-9"""
+    score = 0
+
+    for signal in signals:
+        label = signal.get("label", "")
+
+        if label == "Domain Mismatch":
+            score = DOMAIN_MISMATCH_SCORE
+
+        if label == "Reply-To Mismatch":
+            score = max(score, REPLY_TO_MISMATCH_SCORE)
+
+    return min(score, 9)
 
 def calculate_score(all_signals):
     """Main scoring function. Takes all signals, returns score and verdict."""
     auth_score = score_auth(all_signals)
+    domain_score = score_domain(all_signals)
 
     # TODO: add other likelihood factors
     # TODO: add impact factors
@@ -83,6 +104,7 @@ def calculate_score(all_signals):
         "impact": 0,
         "severity": "Note",
         "debug": {
-            "auth_score": auth_score
+            "auth_score": auth_score,
+            "domain_score": domain_score
         }
     }

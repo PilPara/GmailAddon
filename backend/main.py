@@ -54,6 +54,12 @@ def analyze_email():
 
         print(f"LLM wait: {time.time() - sync_done:.2f}s")
 
+        prettyPrint(llm_response)
+        prettyPrint(auth_response)
+        prettyPrint(domain_response)
+        prettyPrint(links_response)
+        prettyPrint(attachment_response)
+
     # NOTE: Merge all signals from every analyzer into one list
     signals = (
         auth_response["signals"] +
