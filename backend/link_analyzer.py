@@ -27,9 +27,12 @@ def is_ip_url(url):
     return bool(IP_URL_PATTERN.search(url))
 
 def is_shortener(url):
-    for shortener in SHORTENERS:
-        if shortener in url.lower():
-            return shortener
+    domain = DOMAIN_PATTERN.search(url)
+    if domain:
+        domain = domain.group(1).lower()
+        for shortener in SHORTENERS:
+            if domain == shortener or domain.endswith("." + shortener):
+                return shortener
     return None
 
 def has_suspicious_tld(url):

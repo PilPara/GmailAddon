@@ -36,6 +36,13 @@ DMARC_POLICY_BOOST = {
 DOMAIN_MISMATCH_SCORE = 7
 REPLY_TO_MISMATCH_SCORE = 6
 
+# NOTE: Link threat scores (0-9 scale)
+# IP URLs are most suspicious — no legitimate service uses raw IPs in emails
+# Shorteners hide destination, suspicious TLDs are cheap throwaway domains
+IP_URL_SCORE = 8
+SHORTENER_SCORE = 5
+SUSPICIOUS_TLD_SCORE = 6
+
 def score_auth(signals):
     """Score authentication signals. Returns 0-9."""
     spf_score = 0
@@ -89,10 +96,29 @@ def score_domain(signals):
 
     return min(score, 9)
 
+def score_links(signals):
+    """Score link-related signals. Returns 0-9."""
+    score = 0
+
+    for signal in signals:
+        label = signal.get("label", "")
+
+        if label == "IP-Based URL Detected":
+            score = max(score, IP_URL_SCORE)
+
+        elif label == "Suspicious TLD Detected":
+            score = max(score, SUSPICIOUS_TLD_SCORE)
+
+        elif label == "URL Shortener Detected":
+            score = max(score, SHORTENER_SCORE)
+
+    return min(score, 9)
+
 def calculate_score(all_signals):
     """Main scoring function. Takes all signals, returns score and verdict."""
     auth_score = score_auth(all_signals)
     domain_score = score_domain(all_signals)
+    link_score = score_links(all_signals)
 
     # TODO: add other likelihood factors
     # TODO: add impact factors
@@ -105,6 +131,7 @@ def calculate_score(all_signals):
         "severity": "Note",
         "debug": {
             "auth_score": auth_score,
-            "domain_score": domain_score
+            "domain_score": domain_score,
+            "link_score": link_score
         }
     }
