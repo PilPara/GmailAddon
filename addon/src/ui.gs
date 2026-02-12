@@ -63,7 +63,10 @@ function buildVerdictSection(result) {
 
   section.addWidget(
     CardService.newDecoratedText().setText(
-      emoji + "  <b>" + result.verdict + "</b>",
+      emoji +
+        "  <b>" +
+        (result.verdict === "Note" ? "No Risk" : result.verdict + " Risk") +
+        "</b>",
     ),
   );
 
