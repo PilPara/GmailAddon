@@ -67,8 +67,24 @@ function getSeveritySummary(verdict) {
   return summaries[verdict] || "Unable to determine email safety.";
 }
 
+function getNormalizedScore(rawScore) {
+  const MAX_RAW_SCORE = 81;
+  const NORMALIZED_MAX = 100;
+  return Math.round((rawScore / MAX_RAW_SCORE) * NORMALIZED_MAX);
+}
+
+function getScoreLabel(normalizedScore) {
+  if (normalizedScore <= 12) return "Very low risk";
+  if (normalizedScore <= 30) return "Low risk";
+  if (normalizedScore <= 55) return "Moderate risk";
+  if (normalizedScore <= 80) return "High risk";
+  return "Critical risk";
+}
+
 function buildVerdictSection(result) {
   const emoji = getSeverityEmoji(result.verdict);
+  const normalizedScore = getNormalizedScore(result.score);
+  const scoreLabel = getScoreLabel(normalizedScore);
   const section = CardService.newCardSection();
 
   section.addWidget(
@@ -79,6 +95,12 @@ function buildVerdictSection(result) {
 
   section.addWidget(
     CardService.newTextParagraph().setText(getSeveritySummary(result.verdict)),
+  );
+
+  section.addWidget(
+    CardService.newTextParagraph().setText(
+      "Risk Score: " + normalizedScore + " / 100 — " + scoreLabel,
+    ),
   );
 
   return section;
@@ -122,7 +144,6 @@ function isCleanSignal(label) {
     "Links Clean",
     "No Links Found",
     "No Attachments",
-    "Attachment Found",
     "Social Engineering: None",
   ];
   return cleanLabels.indexOf(label) !== -1;
@@ -134,6 +155,10 @@ function isInfoOnlySignal(label) {
   return false;
 }
 
+function isAttachmentFound(label) {
+  return label === "Attachment Found";
+}
+
 function buildFindingsSection(signals) {
   const section = CardService.newCardSection().setHeader("🔍 What We Found");
 
@@ -141,6 +166,21 @@ function buildFindingsSection(signals) {
   let authFailSignals = [];
   let warningSignals = [];
   let infoSignals = [];
+  let safeAttachmentCount = 0;
+  let hasAttachmentWarning = false;
+
+  // NOTE: Check if any attachment has a warning signal
+  for (let i = 0; i < signals.length; i++) {
+    const label = signals[i].label;
+    if (
+      label === "Dangerous File Type" ||
+      label === "Macro-Enabled File" ||
+      label === "Double Extension Detected"
+    ) {
+      hasAttachmentWarning = true;
+      break;
+    }
+  }
 
   for (let i = 0; i < signals.length; i++) {
     const signal = signals[i];
@@ -157,6 +197,11 @@ function buildFindingsSection(signals) {
       continue;
     }
 
+    if (isAttachmentFound(label)) {
+      safeAttachmentCount++;
+      continue;
+    }
+
     if (isCleanSignal(label) || isInfoOnlySignal(label)) {
       infoSignals.push({ label: label, details: details });
       continue;
@@ -165,6 +210,7 @@ function buildFindingsSection(signals) {
     warningSignals.push({ label: label, details: details });
   }
 
+  // NOTE: Auth summary
   if (authPassCount === 3) {
     section.addWidget(
       CardService.newDecoratedText()
@@ -185,6 +231,7 @@ function buildFindingsSection(signals) {
     );
   }
 
+  // NOTE: Auth failures
   for (let i = 0; i < authFailSignals.length; i++) {
     section.addWidget(
       CardService.newDecoratedText()
@@ -193,6 +240,7 @@ function buildFindingsSection(signals) {
     );
   }
 
+  // NOTE: Warnings (dangerous attachments, mismatches, etc.)
   for (let i = 0; i < warningSignals.length; i++) {
     section.addWidget(
       CardService.newDecoratedText()
@@ -201,6 +249,25 @@ function buildFindingsSection(signals) {
     );
   }
 
+  // NOTE: Safe attachment summary
+  if (safeAttachmentCount > 0 && !hasAttachmentWarning) {
+    section.addWidget(
+      CardService.newDecoratedText()
+        .setText(
+          safeAttachmentCount +
+            " attachment(s) — no dangerous file types detected ✓",
+        )
+        .setWrapText(true),
+    );
+  } else if (safeAttachmentCount > 0 && hasAttachmentWarning) {
+    section.addWidget(
+      CardService.newDecoratedText()
+        .setText(safeAttachmentCount + " attachment(s) found")
+        .setWrapText(true),
+    );
+  }
+
+  // NOTE: Info signals
   for (let i = 0; i < infoSignals.length; i++) {
     section.addWidget(
       CardService.newDecoratedText()
@@ -222,9 +289,9 @@ function onGmailMessageOpen(event) {
 
   Logger.log(JSON.stringify(emailData));
 
-  const header = CardService.newCardHeader()
-    .setTitle("UpWind Guard")
-    .setSubtitle(emailData.from);
+  const header = CardService.newCardHeader().setTitle(
+    "From: " + emailData.from,
+  );
 
   const verdictSection = buildVerdictSection(result);
   const actionsSection = buildActionsSection(result.actions);
