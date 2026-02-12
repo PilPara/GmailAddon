@@ -3,14 +3,17 @@ import json
 import requests
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_API_KEY1 = os.environ.get("GEMINI_API_KEY1")
 GEMINI_API_KEY_BRO = os.environ.get("GEMINI_API_KEY_BRO")
 
 # NOTE: Ordered list of model + key combinations to try
 # Falls back through the chain until one succeeds
 GEMINI_MODELS = [
     {"model": "gemini-2.5-flash", "key": GEMINI_API_KEY},
+    {"model": "gemini-2.5-flash", "key": GEMINI_API_KEY1},
     {"model": "gemini-2.5-flash", "key": GEMINI_API_KEY_BRO},
     {"model": "gemini-2.0-flash", "key": GEMINI_API_KEY},
+    {"model": "gemini-2.0-flash", "key": GEMINI_API_KEY1},
     {"model": "gemini-2.0-flash", "key": GEMINI_API_KEY_BRO},
 ]
 
@@ -45,6 +48,8 @@ def try_gemini_request(payload):
                 error_msg = error_msg.replace(GEMINI_API_KEY, "[REDACTED]")
             if GEMINI_API_KEY_BRO:
                 error_msg = error_msg.replace(GEMINI_API_KEY_BRO, "[REDACTED_BRO]")
+            if GEMINI_API_KEY1:
+                error_msg = error_msg.replace(GEMINI_API_KEY1, "[REDACTED_1]")
             print(f"Failed: {error_msg}")
             continue
 
