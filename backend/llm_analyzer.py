@@ -3,7 +3,7 @@ import json
 import requests
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
 # NOTE: Load LLM prompt from external file for readability and maintainability
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "prompt.txt")
