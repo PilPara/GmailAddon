@@ -48,8 +48,8 @@ function getSeverityEmoji(verdict) {
     Critical: "🔴",
     High: "🟠",
     Medium: "🟡",
-    Low: "🟢",
-    Note: "✅",
+    Low: "🔵",
+    Note: "🟢",
   };
   return emojis[verdict] || "⚪";
 }
@@ -85,7 +85,7 @@ function buildVerdictSection(result) {
   const emoji = getSeverityEmoji(result.verdict);
   const normalizedScore = getNormalizedScore(result.score);
   const scoreLabel = getScoreLabel(normalizedScore);
-  const section = CardService.newCardSection();
+  const section = CardService.newCardSection().setHeader("Verdict");
 
   section.addWidget(
     CardService.newDecoratedText().setText(
@@ -159,8 +159,25 @@ function isAttachmentFound(label) {
   return label === "Attachment Found";
 }
 
-function buildFindingsSection(signals) {
-  const section = CardService.newCardSection().setHeader("🔍 What We Found");
+function addFindingWidget(card, text) {
+  const section = CardService.newCardSection();
+  section.addWidget(
+    CardService.newDecoratedText().setText(text).setWrapText(true),
+  );
+  card.addSection(section);
+}
+
+function buildCard(header, verdictSection, actionsSection, signals) {
+  const card = CardService.newCardBuilder()
+    .setHeader(header)
+    .addSection(verdictSection)
+    .addSection(actionsSection);
+
+  // NOTE: Add findings header
+  const findingsHeader =
+    CardService.newCardSection().setHeader("🔍 What We Found");
+  findingsHeader.addWidget(CardService.newTextParagraph().setText(""));
+  card.addSection(findingsHeader);
 
   let authPassCount = 0;
   let authFailSignals = [];
@@ -169,7 +186,6 @@ function buildFindingsSection(signals) {
   let safeAttachmentCount = 0;
   let hasAttachmentWarning = false;
 
-  // NOTE: Check if any attachment has a warning signal
   for (let i = 0; i < signals.length; i++) {
     const label = signals[i].label;
     if (
@@ -212,71 +228,46 @@ function buildFindingsSection(signals) {
 
   // NOTE: Auth summary
   if (authPassCount === 3) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText(
-          "Sender identity verified — this email is really from who it claims ✓",
-        )
-        .setWrapText(true),
+    addFindingWidget(
+      card,
+      "Sender identity verified — this email is really from who it claims ✓",
     );
   } else if (authPassCount > 0) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText(
-          "Sender identity partially verified (" +
-            authPassCount +
-            "/3 checks passed)",
-        )
-        .setWrapText(true),
+    addFindingWidget(
+      card,
+      "Sender identity partially verified (" +
+        authPassCount +
+        "/3 checks passed)",
     );
   }
 
   // NOTE: Auth failures
   for (let i = 0; i < authFailSignals.length; i++) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText("⚠️ " + authFailSignals[i].details)
-        .setWrapText(true),
-    );
+    addFindingWidget(card, "⚠️ " + authFailSignals[i].details);
   }
 
-  // NOTE: Warnings (dangerous attachments, mismatches, etc.)
+  // NOTE: Warnings
   for (let i = 0; i < warningSignals.length; i++) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText("⚠️ " + warningSignals[i].details)
-        .setWrapText(true),
-    );
+    addFindingWidget(card, "⚠️ " + warningSignals[i].details);
   }
 
-  // NOTE: Safe attachment summary
+  // NOTE: Safe attachments
   if (safeAttachmentCount > 0 && !hasAttachmentWarning) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText(
-          safeAttachmentCount +
-            " attachment(s) — no dangerous file types detected ✓",
-        )
-        .setWrapText(true),
+    addFindingWidget(
+      card,
+      safeAttachmentCount +
+        " attachment(s) — no dangerous file types detected ✓",
     );
   } else if (safeAttachmentCount > 0 && hasAttachmentWarning) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText(safeAttachmentCount + " attachment(s) found")
-        .setWrapText(true),
-    );
+    addFindingWidget(card, safeAttachmentCount + " attachment(s) found");
   }
 
   // NOTE: Info signals
   for (let i = 0; i < infoSignals.length; i++) {
-    section.addWidget(
-      CardService.newDecoratedText()
-        .setText(infoSignals[i].details)
-        .setWrapText(true),
-    );
+    addFindingWidget(card, infoSignals[i].details);
   }
 
-  return section;
+  return card.build();
 }
 
 function onGmailMessageOpen(event) {
@@ -295,12 +286,6 @@ function onGmailMessageOpen(event) {
 
   const verdictSection = buildVerdictSection(result);
   const actionsSection = buildActionsSection(result.actions);
-  const findingsSection = buildFindingsSection(result.signals);
 
-  return CardService.newCardBuilder()
-    .setHeader(header)
-    .addSection(verdictSection)
-    .addSection(actionsSection)
-    .addSection(findingsSection)
-    .build();
+  return buildCard(header, verdictSection, actionsSection, result.signals);
 }
