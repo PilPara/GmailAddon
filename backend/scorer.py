@@ -70,7 +70,7 @@ MALICIOUS_MEDIUM_CONFIDENCE_SCORE = 7
 MALICIOUS_LOW_CONFIDENCE_SCORE = 5
 MALICIOUS_UNCERTAIN_SCORE = 3
 
-# NOTE: Score assigned when LLM analysis fails entirely
+# NOTE: Score assigned when LLM analysis fails entirely and no fallback classification exists
 # Treated as suspicious — absence of AI analysis is not evidence of safety
 LLM_FAILURE_SCORE = 5
 
@@ -155,6 +155,10 @@ LIKELIHOOD_MEDIUM_THRESHOLD = 6
 # NOTE: Impact thresholds for matrix categorization (0-9 scale)
 IMPACT_LOW_THRESHOLD = 3
 IMPACT_MEDIUM_THRESHOLD = 6
+
+# NOTE: Minimum likelihood score when classified as malicious with medium+ confidence
+# Prevents phishing emails from legitimate mail servers from scoring artificially low
+MALICIOUS_CLASSIFICATION_LIKELIHOOD_FLOOR = 6
 
 # NOTE: Severity matrix — rows are likelihood (LOW/MEDIUM/HIGH), columns are impact
 # Matches OWASP Risk Rating Methodology adapted for email threat domain
@@ -259,27 +263,29 @@ def score_links(signals):
 def score_llm(signals):
     """Score LLM deception sophistication. Returns 0-9.
     Combines attack type classification with confidence level."""
-
-    # NOTE: If LLM failed, treat as suspicious rather than neutral
-    for signal in signals:
-        if signal.get("label") in ("LLM Analysis Failed", "LLM Analysis Unavailable", "LLM Analysis Skipped"):
-            return LLM_FAILURE_SCORE
-
     attack_type = "unknown"
     confidence = 0
+    has_failure = False
 
     for signal in signals:
         label = signal.get("label", "")
         details = signal.get("details", "")
 
+        # NOTE: Track if LLM failed
+        if label in ("LLM Analysis Failed", "LLM Analysis Unavailable", "LLM Analysis Skipped"):
+            has_failure = True
+
+        # NOTE: Check for classification from either LLM or fallback analyzer
         if label.startswith("Classification:"):
-            # NOTE: Extract attack type from label (e.g., "Classification: Phishing" -> "phishing")
             attack_type = label.split(": ", 1)[1].lower().replace(" ", "_")
 
-            # NOTE: Extract confidence from details (e.g., "Confidence: 85%" -> 85)
             match = CONFIDENCE_PATTERN.search(details)
             if match:
                 confidence = int(match.group(1))
+
+    # NOTE: If LLM failed and fallback provided no classification, use failure score
+    if has_failure and attack_type == "unknown":
+        return LLM_FAILURE_SCORE
 
     # NOTE: If classified as legitimate, score is inverse of confidence
     if attack_type == "legitimate":
@@ -400,6 +406,17 @@ def calculate_score(all_signals):
     impact_scores = score_impact(all_signals)
     likelihood = calculate_likelihood(auth_score, domain_score, reply_to_score, link_score, llm_score)
     impact = round((impact_scores["data_compromise"] + impact_scores["availability"]) / IMPACT_FACTOR_COUNT, 1)
+
+    # NOTE: If classified as malicious with medium+ confidence, enforce minimum likelihood
+    # A phishing email from a real mail server is MORE dangerous, not less
+    attack_type = extract_attack_type(all_signals)
+    if attack_type != "legitimate" and attack_type != "unknown":
+        for signal in all_signals:
+            if signal.get("label", "").startswith("Classification:"):
+                match = CONFIDENCE_PATTERN.search(signal.get("details", ""))
+                if match and int(match.group(1)) >= CONFIDENCE_MEDIUM:
+                    likelihood = max(likelihood, MALICIOUS_CLASSIFICATION_LIKELIHOOD_FLOOR)
+                break
 
     likelihood_level = categorize_likelihood(likelihood)
     impact_level = categorize_impact(impact)
